@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+build/
+dist/
+.claude/
+*.spec.bak
+SoundVolumeView.cfg
