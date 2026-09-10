@@ -32,6 +32,7 @@ DARK = {
     "modal_card_bg": "#241a3d",
     "scrollbar_bg": "rgba(255,255,255,0.05)",
     "scrollbar_handle": "rgba(255,255,255,0.24)",
+    "groove_bg": "rgba(255,255,255,0.10)",
 }
 
 LIGHT = {
@@ -61,6 +62,7 @@ LIGHT = {
     "modal_card_bg": "#ffffff",
     "scrollbar_bg": "rgba(90,70,130,0.10)",
     "scrollbar_handle": "rgba(120,100,160,0.45)",
+    "groove_bg": "rgba(255,255,255,0.55)",
 }
 
 

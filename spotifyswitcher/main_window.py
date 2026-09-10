@@ -21,12 +21,12 @@ from PySide6.QtWidgets import (
 from . import backend, settings, theme
 from .glass_background import GlassBackground
 from .resources import ICON_PATH
+from .scan_worker import StatusScanWorker
 from .settings_overlay import SettingsOverlay
 from .style import build_stylesheet
 from .toggle_switch import ToggleSwitch
 
 REFRESH_MS = 2000
-INITIAL_APPLY_MS = 500
 
 
 class MainWindow(QMainWindow):
@@ -57,13 +57,13 @@ class MainWindow(QMainWindow):
 
         self.setFixedSize(452, 560)
 
-        QTimer.singleShot(INITIAL_APPLY_MS, self.apply_initial_state)
+        # Process scans run in a worker thread, so neither the first status after
+        # launch nor the 2 s refresh ever makes the GUI thread wait on psutil.
+        self._status_worker: StatusScanWorker | None = None
+        self._first_status_seen = False
         self._refresh_timer = QTimer(self)
         self._refresh_timer.timeout.connect(self.refresh_status)
         self._refresh_timer.start(REFRESH_MS)
-        # scanning running processes (psutil) takes a noticeable moment —
-        # deferring it lets the window paint and appear instantly instead
-        # of the whole app stalling on that scan before it's even visible.
         QTimer.singleShot(0, self.refresh_status)
 
     # ------------------------------------------------------------ UI ------
@@ -237,10 +237,6 @@ class MainWindow(QMainWindow):
             self.app_title_label.setText("🔊  Aucune application")
 
     # ------------------------------------------------------------ logic ---
-    def apply_initial_state(self):
-        if self.target_process and backend.target_process_running(self.target_process):
-            self.switch(self.mode, silent=True)
-
     def device_for_mode(self, mode: str) -> str:
         return self.live_device if mode == "LIVE" else self.normal_device
 
@@ -283,16 +279,32 @@ class MainWindow(QMainWindow):
     def refresh_status(self):
         if not self.target_process:
             self.device_label.setText("Choisis une application avec le bouton ⋯")
-        else:
-            n = backend.target_process_running(self.target_process)
-            if n == 0:
-                display_name = Path(self.target_process).stem
-                self.device_label.setText(f"{display_name} n'est pas lancé")
-            else:
-                target = self.device_for_mode(self.mode)
-                self.device_label.setText(f"{n} processus → {target}  [{self.mode}]")
+        if self._status_worker is not None:
+            return  # a scan is already running
+        worker = StatusScanWorker(self.target_process, self.voicemeeter_path)
+        worker.finished_scan.connect(self._on_status_scanned)
+        self._status_worker = worker
+        worker.start()
 
-        vm_running = bool(backend.voicemeeter_pids(self.voicemeeter_path))
-        self.voicemeeter_label.setText(
-            "Voicemeeter : lancé" if vm_running else "Voicemeeter : fermé"
-        )
+    def _on_status_scanned(self, running: int, vm_running: bool):
+        self._status_worker = None
+        try:
+            if self.target_process:
+                if running == 0:
+                    display_name = Path(self.target_process).stem
+                    self.device_label.setText(f"{display_name} n'est pas lancé")
+                else:
+                    target = self.device_for_mode(self.mode)
+                    self.device_label.setText(f"{running} processus → {target}  [{self.mode}]")
+            self.voicemeeter_label.setText(
+                "Voicemeeter : lancé" if vm_running else "Voicemeeter : fermé"
+            )
+        except RuntimeError:
+            return  # the window was closed before the scan came back
+
+        # Re-apply the remembered mode once, on the first status after launch —
+        # only if the target app is actually running.
+        if not self._first_status_seen:
+            self._first_status_seen = True
+            if running:
+                self.switch(self.mode, silent=True)

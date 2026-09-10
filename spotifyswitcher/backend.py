@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import csv
-import subprocess
 import sys
 from pathlib import Path
 
-import psutil
-
 from .settings import CONFIG_DIR
+
+# psutil, subprocess and csv are imported inside the functions that use them: none of
+# them is needed to draw the window, and together they cost ~150 ms at import — paid
+# on the startup path if they sit up here.
 
 # Shipped blank on purpose — every install has different hardware and apps,
 # so there's nothing sensible to preselect. The UI prompts the user to
@@ -47,6 +47,8 @@ def svv_set_app_default(device_name: str, process_name: str) -> tuple[bool, str]
     """Définit le device de sortie par défaut pour une app donnée.
     role: 0=Console, 1=Multimedia, 2=Communications — on applique aux trois.
     """
+    import subprocess
+
     if not SVV.exists():
         return False, f"SoundVolumeView.exe introuvable dans {SVV.parent}"
 
@@ -65,6 +67,8 @@ def svv_set_app_default(device_name: str, process_name: str) -> tuple[bool, str]
 
 def svv_list_devices() -> str:
     """Dump la liste des devices via SoundVolumeView pour debug."""
+    import subprocess
+
     if not SVV.exists():
         return "SoundVolumeView.exe introuvable."
     out_file = CONFIG_DIR / "svv_devices.txt"
@@ -89,6 +93,9 @@ def dump_devices() -> Path:
 def list_output_devices() -> list[str]:
     """Scan currently active render (output) devices via SoundVolumeView, to
     populate the LIVE/NORMAL device pickers in Settings."""
+    import csv
+    import subprocess
+
     if not SVV.exists():
         return []
     out_file = CONFIG_DIR / "svv_devices.csv"
@@ -115,13 +122,21 @@ def list_output_devices() -> list[str]:
 # ---------------------------------------------------------------------------
 # Voicemeeter / target app detection
 # ---------------------------------------------------------------------------
-def voicemeeter_pids(voicemeeter_path: str) -> list[int]:
-    proc_name = Path(voicemeeter_path).name.lower()
+def _pids_named(process_name: str) -> list[int]:
+    import psutil
+
+    wanted = process_name.lower()
     return [p.pid for p in psutil.process_iter(["name"])
-            if p.info["name"] and p.info["name"].lower() == proc_name]
+            if p.info["name"] and p.info["name"].lower() == wanted]
+
+
+def voicemeeter_pids(voicemeeter_path: str) -> list[int]:
+    return _pids_named(Path(voicemeeter_path).name)
 
 
 def start_voicemeeter(voicemeeter_path: str) -> str:
+    import subprocess
+
     if voicemeeter_pids(voicemeeter_path):
         return "Voicemeeter déjà lancé"
     if not Path(voicemeeter_path).exists():
@@ -138,6 +153,8 @@ def start_voicemeeter(voicemeeter_path: str) -> str:
 
 
 def stop_voicemeeter(voicemeeter_path: str) -> str:
+    import psutil
+
     pids = voicemeeter_pids(voicemeeter_path)
     if not pids:
         return "Voicemeeter pas en cours"
@@ -157,7 +174,4 @@ def stop_voicemeeter(voicemeeter_path: str) -> str:
 
 
 def target_process_running(process_name: str) -> int:
-    return sum(
-        1 for p in psutil.process_iter(["name"])
-        if p.info["name"] and p.info["name"].lower() == process_name.lower()
-    )
+    return len(_pids_named(process_name))

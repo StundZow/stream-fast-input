@@ -52,3 +52,9 @@ def save_settings(data: dict) -> None:
         SETTINGS_FILE.write_text(json.dumps(data), encoding="utf-8")
     except OSError:
         pass
+
+
+def get_theme() -> str | None:
+    """Explicitly chosen theme, or None to follow Windows."""
+    name = load_settings().get("theme")
+    return name if name in ("light", "dark") else None
