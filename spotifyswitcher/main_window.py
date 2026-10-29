@@ -3,8 +3,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import QSize, Qt, QTimer
+from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -15,18 +15,25 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QPushButton,
     QVBoxLayout,
-    QWidget,
 )
 
-from . import backend, settings, theme
+from . import backend, icons, settings, theme
 from .glass_background import GlassBackground
-from .resources import ICON_PATH
+from .resources import ICON_PATH, resource_path
 from .scan_worker import StatusScanWorker
 from .settings_overlay import SettingsOverlay
 from .style import build_stylesheet
 from .toggle_switch import ToggleSwitch
 
 REFRESH_MS = 2000
+LOGO_SIZE = 32
+
+# status badge kind -> (icon, colour role)
+_BADGE_ICONS = {
+    "success": ("check", "success"),
+    "warning": ("alert", "warn"),
+    "idle": ("info", "muted"),
+}
 
 
 class MainWindow(QMainWindow):
@@ -46,13 +53,14 @@ class MainWindow(QMainWindow):
         self.target_process = self.app_settings.get("target_process") or backend.DEFAULT_TARGET_PROCESS
         self.voicemeeter_path = self.app_settings.get("voicemeeter_path") or backend.DEFAULT_VOICEMEETER_EXE
 
+        icons.set_palette(self.palette)
         self._build_ui()
         self.apply_theme(self.theme_name)
         self.update_mode_buttons()
 
         if not backend.SVV.exists():
             self.show_status(
-                f"⚠ Place SoundVolumeView.exe dans :\n{backend.SVV.parent}", "warning"
+                f"Place SoundVolumeView.exe dans :\n{backend.SVV.parent}", "warning"
             )
 
         self.setFixedSize(452, 560)
@@ -75,10 +83,16 @@ class MainWindow(QMainWindow):
         root.setSpacing(18)
 
         # header ------------------------------------------------------
+        # explicit gaps instead of a layout-wide spacing: with the logo, the subtitle
+        # only fits if the stretch doesn't also get padded on both sides
         header = QHBoxLayout()
+        header.setSpacing(0)
+        header.addWidget(self._logo_label())
+        header.addSpacing(12)
+
         title_box = QVBoxLayout()
-        title_box.setSpacing(2)
-        title = QLabel("🎚️  Stream Fast Input")
+        title_box.setSpacing(0)
+        title = QLabel("Stream Fast Input")
         title.setObjectName("title")
         subtitle = QLabel("Bascule la sortie audio d'une application")
         subtitle.setObjectName("subtitle")
@@ -87,11 +101,12 @@ class MainWindow(QMainWindow):
         header.addLayout(title_box)
         header.addStretch()
 
-        self.settings_button = QPushButton("⚙")
+        self.settings_button = QPushButton()
         self.settings_button.setObjectName("iconButton")
         self.settings_button.setFixedSize(34, 34)
         self.settings_button.setCursor(Qt.PointingHandCursor)
         self.settings_button.setToolTip("Paramètres")
+        icons.bind(self.settings_button, "settings", "muted", 19)
         self.settings_button.clicked.connect(self.open_settings)
         header.addWidget(self.settings_button)
         header.addSpacing(6)
@@ -110,16 +125,19 @@ class MainWindow(QMainWindow):
         status_layout.setSpacing(6)
 
         card_title_row = QHBoxLayout()
+        card_title_row.setSpacing(8)
+        card_title_row.addWidget(icons.label("volume", "accent", 18))
         self.app_title_label = QLabel()
         self.app_title_label.setObjectName("cardTitle")
         card_title_row.addWidget(self.app_title_label)
         card_title_row.addStretch()
 
-        self.choose_app_button = QPushButton("⋯")
+        self.choose_app_button = QPushButton()
         self.choose_app_button.setObjectName("iconButton")
-        self.choose_app_button.setFixedSize(28, 28)
+        self.choose_app_button.setFixedSize(30, 30)
         self.choose_app_button.setCursor(Qt.PointingHandCursor)
         self.choose_app_button.setToolTip("Choisir une autre application")
+        icons.bind(self.choose_app_button, "more", "muted", 20)
         self.choose_app_button.clicked.connect(self.choose_target_app)
         card_title_row.addWidget(self.choose_app_button)
         status_layout.addLayout(card_title_row)
@@ -140,14 +158,15 @@ class MainWindow(QMainWindow):
         mode_row = QHBoxLayout()
         mode_row.setSpacing(12)
 
-        self.btn_live = QPushButton("🔴  LIVE")
-        self.btn_live.setObjectName("modeButtonLive")
-        self.btn_normal = QPushButton("🟢  NORMAL")
-        self.btn_normal.setObjectName("modeButtonNormal")
-        for b in (self.btn_live, self.btn_normal):
+        # The app icon's idea: the active output solid, the other one faded.
+        self.btn_live = QPushButton("  LIVE")
+        self.btn_normal = QPushButton("  NORMAL")
+        for b, icon_name in ((self.btn_live, "live"), (self.btn_normal, "headphones")):
+            b.setObjectName("modeButton")
             b.setCheckable(True)
             b.setCursor(Qt.PointingHandCursor)
             b.setFixedHeight(74)
+            icons.bind(b, icon_name, "faded", 22, checked_role="white")
             mode_row.addWidget(b, stretch=1)
 
         self._mode_group = QButtonGroup(self)
@@ -162,12 +181,16 @@ class MainWindow(QMainWindow):
         # status badge (result of the last switch) ------------------------
         self.status_badge = QFrame()
         self.status_badge.setObjectName("statusBadge")
-        badge_layout = QVBoxLayout(self.status_badge)
-        badge_layout.setContentsMargins(14, 10, 14, 10)
+        badge_layout = QHBoxLayout(self.status_badge)
+        badge_layout.setContentsMargins(12, 10, 14, 10)
+        badge_layout.setSpacing(9)
+        self.status_badge_icon = QLabel()
+        self.status_badge_icon.setFixedSize(16, 16)
+        badge_layout.addWidget(self.status_badge_icon, alignment=Qt.AlignTop)
         self.status_badge_text = QLabel("")
         self.status_badge_text.setObjectName("statusBadgeText")
         self.status_badge_text.setWordWrap(True)
-        badge_layout.addWidget(self.status_badge_text)
+        badge_layout.addWidget(self.status_badge_text, stretch=1)
         root.addWidget(self.status_badge)
         self.show_status("En attente — choisissez LIVE ou NORMAL.", "idle")
 
@@ -176,12 +199,27 @@ class MainWindow(QMainWindow):
         # footer ------------------------------------------------------
         footer = QHBoxLayout()
         footer.addStretch()
-        self.debug_button = QPushButton("🔍  Debug devices")
+        self.debug_button = QPushButton("Debug devices")
         self.debug_button.setObjectName("debugButton")
         self.debug_button.setCursor(Qt.PointingHandCursor)
+        icons.bind(self.debug_button, "search", "dim", 13)
         self.debug_button.clicked.connect(self.dump_devices)
         footer.addWidget(self.debug_button)
         root.addLayout(footer)
+
+    @staticmethod
+    def _logo_label() -> QLabel:
+        """The app icon itself, heading the window."""
+        ratio = QApplication.instance().devicePixelRatio() if QApplication.instance() else 1.0
+        side = round(LOGO_SIZE * ratio)
+        logo = QPixmap(resource_path("assets/icon.png")).scaled(
+            side, side, Qt.KeepAspectRatio, Qt.SmoothTransformation
+        )
+        logo.setDevicePixelRatio(ratio)
+        label = QLabel()
+        label.setFixedSize(QSize(LOGO_SIZE, LOGO_SIZE))
+        label.setPixmap(logo)
+        return label
 
     # ------------------------------------------------------------ theme ---
     def apply_theme(self, name: str):
@@ -190,6 +228,7 @@ class MainWindow(QMainWindow):
         app = QApplication.instance()
         if app:
             app.setStyleSheet(build_stylesheet(self.palette))
+        icons.set_palette(self.palette)
         self.glass_background.set_theme(self.palette)
 
     def on_theme_toggled(self, checked: bool):
@@ -200,6 +239,8 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------ status --
     def show_status(self, text: str, kind: str):
+        icon_name, role = _BADGE_ICONS[kind]
+        icons.bind_label(self.status_badge_icon, icon_name, role, 16)
         self.status_badge_text.setText(text)
         self.status_badge.setProperty("kind", kind)
         self.status_badge_text.setProperty("kind", kind)
@@ -231,10 +272,9 @@ class MainWindow(QMainWindow):
 
     def update_app_title(self):
         if self.target_process:
-            display_name = Path(self.target_process).stem
-            self.app_title_label.setText(f"🔊  {display_name}")
+            self.app_title_label.setText(Path(self.target_process).stem)
         else:
-            self.app_title_label.setText("🔊  Aucune application")
+            self.app_title_label.setText("Aucune application")
 
     # ------------------------------------------------------------ logic ---
     def device_for_mode(self, mode: str) -> str:
@@ -242,12 +282,12 @@ class MainWindow(QMainWindow):
 
     def switch(self, mode: str, silent: bool = False):
         if not self.target_process:
-            self.show_status("⚠ Choisis d'abord une application avec le bouton ⋯.", "warning")
+            self.show_status("Choisis d'abord une application avec le bouton ···.", "warning")
             return
         device = self.device_for_mode(mode)
         if not device:
             self.show_status(
-                f"⚠ Configure la sortie {mode} dans les paramètres (⚙) avant de basculer.",
+                f"Configure la sortie {mode} dans les paramètres avant de basculer.",
                 "warning",
             )
             return
@@ -266,9 +306,9 @@ class MainWindow(QMainWindow):
             settings.save_mode(mode)
             self.update_mode_buttons()
             if not silent:
-                self.show_status(f"✓ {mode} → {device}  •  {vm_msg}", "success")
+                self.show_status(f"{mode} → {device}  •  {vm_msg}", "success")
         else:
-            self.show_status(f"⚠ {msg}", "warning")
+            self.show_status(msg, "warning")
 
         self.refresh_status()
 
@@ -278,7 +318,7 @@ class MainWindow(QMainWindow):
 
     def refresh_status(self):
         if not self.target_process:
-            self.device_label.setText("Choisis une application avec le bouton ⋯")
+            self.device_label.setText("Choisis une application avec le bouton ···")
         if self._status_worker is not None:
             return  # a scan is already running
         worker = StatusScanWorker(self.target_process, self.voicemeeter_path)

@@ -14,12 +14,8 @@ _BLUR_RADIUS = 16
 
 
 def backdrop_color(palette: dict) -> QColor:
-    # Dark theme's own UI is already near-black — a heavy black dim on top
-    # of it crushes the blurred content to unreadable black, so it gets a
-    # much lighter touch than light theme needs.
-    if palette.get("name") == "dark":
-        return QColor(30, 24, 48, 70)
-    return QColor(8, 6, 18, 150)
+    # navy-tinted dim, per theme (see theme.py "backdrop")
+    return QColor(*palette.get("backdrop", (2, 6, 16, 120)))
 
 
 class ModalOverlay(QWidget):

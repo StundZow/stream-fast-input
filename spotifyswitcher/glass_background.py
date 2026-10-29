@@ -8,20 +8,14 @@ from .theme import DARK
 
 
 class GlassBackground(QWidget):
-    """Soft pastel backdrop with a few gentle color accents in the corners.
+    """Window backdrop: a flat base with two faint washes, teal top-left and blue
+    bottom-right — the app icon's gradient direction, kept low enough that the solid
+    cards above stay crisp and contrasted."""
 
-    Radial gradients are inherently soft-edged, so the accents read as blurred
-    color washes without an actual blur pass. Most of the surface stays close
-    to the base tone so the frosted cards above keep their contrast.
-    """
-
-    # (rel_x, rel_y, rel_radius) — anchored near corners, radius as a fraction
-    # of the larger window dimension.
-    _BLOB_LAYOUT = [
-        (0.05, -0.08, 0.55),
-        (0.98, 0.02, 0.50),
-        (0.92, 1.02, 0.60),
-        (0.02, 1.00, 0.48),
+    # (rel_x, rel_y, rel_radius) — radius as a fraction of the larger window dimension
+    _HALO_LAYOUT = [
+        (0.0, 0.0, 0.85),
+        (1.0, 1.0, 0.95),
     ]
 
     def __init__(self, parent=None):
@@ -43,13 +37,9 @@ class GlassBackground(QWidget):
         painter.fillRect(rect, base)
 
         span = max(rect.width(), rect.height())
-        alpha = self._palette["blob_alpha"]
-        for (rx, ry, rr), color_hex in zip(self._BLOB_LAYOUT, self._palette["blob_colors"]):
-            cx = rect.width() * rx
-            cy = rect.height() * ry
-            radius = span * rr
-
-            gradient = QRadialGradient(QPointF(cx, cy), radius)
+        alpha = self._palette["halo_alpha"]
+        for (rx, ry, rr), color_hex in zip(self._HALO_LAYOUT, self._palette["halo_colors"]):
+            gradient = QRadialGradient(QPointF(rect.width() * rx, rect.height() * ry), span * rr)
             color = QColor(color_hex)
             color.setAlpha(alpha)
             edge = QColor(color_hex)

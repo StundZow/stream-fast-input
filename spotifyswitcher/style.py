@@ -1,19 +1,24 @@
-from .resources import resource_path
+from .theme import BLUE, TEAL
 
-_CHECK_ICON = resource_path("assets/check.png").replace("\\", "/")
+# The app icon's tile, as a fill: teal top-left -> blue bottom-right.
+_GRADIENT = f"qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {TEAL}, stop:1 {BLUE})"
+_GRADIENT_HOVER = "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #3CDDD0, stop:1 #4670F0)"
 
 
 def build_stylesheet(p: dict) -> str:
+    # 'Segoe UI' alone, no generic fallback: a generic family such as sans-serif makes
+    # Qt resolve the system fallback chain the first time text is shaped — ~1 s, once,
+    # with the thread frozen (measured). Segoe UI ships with every Windows 10/11.
     return f"""
 QWidget {{
-    background-color: {p['bg']};
+    background-color: transparent;
     color: {p['text']};
-    font-family: 'Segoe UI', sans-serif;
+    font-family: 'Segoe UI';
     font-size: 13px;
 }}
 
 QLabel#title {{
-    font-size: 21px;
+    font-size: 20px;
     font-weight: 700;
     color: {p['text']};
 }}
@@ -32,10 +37,15 @@ QLabel#dimText {{
     font-size: 11px;
 }}
 
+QLabel#sectionTitle {{
+    font-weight: 600;
+    font-size: 13px;
+}}
+
 QFrame#card {{
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {p['card_bg_top']}, stop:0.22 {p['card_bg']}, stop:1 {p['card_bg']});
-    border-radius: 22px;
-    border: 1px solid {p['card_border']};
+    background-color: {p['surface']};
+    border: 1px solid {p['surface_border']};
+    border-radius: 16px;
 }}
 
 QLabel#cardTitle {{
@@ -53,49 +63,42 @@ QLabel#statusValue {{
 QPushButton#iconButton {{
     background: transparent;
     border: none;
-    border-radius: 17px;
-    font-size: 19px;
-    color: {p['text_muted']};
+    border-radius: 10px;
 }}
 QPushButton#iconButton:hover {{
-    background-color: {p['input_bg']};
+    background-color: {p['control_hover']};
+}}
+QPushButton#iconButton:pressed {{
+    background-color: {p['control_border']};
 }}
 
-/* ---- big LIVE / NORMAL mode buttons ------------------------------------ */
-QPushButton#modeButtonLive, QPushButton#modeButtonNormal {{
-    background-color: {p['input_bg']};
-    border: 1px solid {p['input_border']};
-    border-radius: 20px;
-    padding: 14px 10px;
-    color: {p['text_muted']};
+/* ---- LIVE / NORMAL: the active output solid, the other faded (the logo's idea) ---- */
+QPushButton#modeButton {{
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {p['faded_a']}, stop:1 {p['faded_b']});
+    border: 1px solid {p['faded_border']};
+    border-radius: 18px;
+    padding: 0 12px;
+    color: {p['faded_text']};
     font-size: 17px;
     font-weight: 700;
 }}
-QPushButton#modeButtonLive:hover, QPushButton#modeButtonNormal:hover {{
-    border-color: {p['input_border_hover']};
-    color: {p['text']};
+QPushButton#modeButton:hover {{
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {p['faded_hover_a']}, stop:1 {p['faded_hover_b']});
+    border-color: {p['faded_border_hover']};
+    color: {p['faded_text_hover']};
 }}
-QPushButton#modeButtonLive:checked {{
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #f43f5e, stop:1 #b91c1c);
-    border: 1px solid rgba(255,255,255,0.20);
+QPushButton#modeButton:checked {{
+    background: {_GRADIENT};
+    border: 1px solid transparent;
     color: #ffffff;
 }}
-QPushButton#modeButtonLive:checked:hover {{
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #fb5773, stop:1 #d4231f);
-}}
-QPushButton#modeButtonNormal:checked {{
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #22c55e, stop:1 #15803d);
-    border: 1px solid rgba(255,255,255,0.20);
-    color: #ffffff;
-}}
-QPushButton#modeButtonNormal:checked:hover {{
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #34d874, stop:1 #1c9548);
+QPushButton#modeButton:checked:hover {{
+    background: {_GRADIENT_HOVER};
 }}
 
 /* ---- status badge (result of the last switch) -------------------------- */
 QFrame#statusBadge {{
-    border-radius: 16px;
-    padding: 4px;
+    border-radius: 12px;
 }}
 QFrame#statusBadge[kind="success"] {{
     background-color: {p['success_bg']};
@@ -106,59 +109,60 @@ QFrame#statusBadge[kind="warning"] {{
     border: 1px solid {p['warning_border']};
 }}
 QFrame#statusBadge[kind="idle"] {{
-    background-color: {p['input_bg']};
-    border: 1px solid {p['input_border']};
+    background-color: {p['surface']};
+    border: 1px solid {p['surface_border']};
+}}
+QLabel#statusBadgeText {{
+    font-weight: 600;
+    font-size: 12px;
 }}
 QLabel#statusBadgeText[kind="success"] {{
     color: {p['success_text']};
-    font-weight: 600;
-    font-size: 12px;
 }}
 QLabel#statusBadgeText[kind="warning"] {{
     color: {p['warning_text']};
-    font-weight: 600;
-    font-size: 12px;
 }}
 QLabel#statusBadgeText[kind="idle"] {{
-    color: {p['text_dim']};
-    font-weight: 600;
-    font-size: 12px;
+    color: {p['text_muted']};
 }}
 
 QFrame#modalCard {{
-    background-color: {p['modal_card_bg']};
-    border-radius: 22px;
-    border: 1px solid {p['card_border']};
+    background-color: {p['elevated']};
+    border-radius: 18px;
+    border: 1px solid {p['elevated_border']};
 }}
 
 QPushButton#pathButton {{
-    background-color: {p['input_bg']};
-    border: 1px solid {p['input_border']};
-    border-radius: 14px;
-    padding: 9px 18px;
+    background-color: {p['control_bg']};
+    border: 1px solid {p['control_border']};
+    border-radius: 12px;
+    padding: 8px 16px;
     color: {p['text']};
     font-weight: 600;
 }}
 QPushButton#pathButton:hover {{
-    background-color: {p['input_border']};
-    border-color: {p['input_border_hover']};
+    background-color: {p['control_hover']};
+    border-color: {p['control_border_hover']};
+}}
+QPushButton#pathButton:disabled {{
+    color: {p['text_dim']};
 }}
 
 /* ---- device picker: a custom-drawn dropdown, not native QComboBox ------ */
 QFrame#devicePickerButton {{
-    background-color: {p['input_bg']};
-    border: 1px solid {p['input_border']};
-    border-radius: 13px;
+    background-color: {p['control_bg']};
+    border: 1px solid {p['control_border']};
+    border-radius: 12px;
     font-size: 13px;
 }}
 QFrame#devicePickerButton:hover {{
-    border-color: {p['input_border_hover']};
+    border-color: {p['control_border_hover']};
 }}
 
 QFrame#devicePopup {{
-    background-color: {p['modal_card_bg']};
-    border: 1px solid {p['input_border_hover']};
-    border-radius: 16px;
+    background-color: {p['elevated']};
+    border: 1px solid {p['elevated_border']};
+    border-radius: 14px;
 }}
 QListWidget#devicePopupList {{
     background: transparent;
@@ -170,15 +174,14 @@ QListWidget#devicePopupList {{
 QListWidget#devicePopupList::item {{
     padding: 10px 14px;
     margin: 1px 2px;
-    border-radius: 10px;
+    border-radius: 9px;
 }}
 QListWidget#devicePopupList::item:hover {{
-    background-color: {p['input_bg']};
+    background-color: {p['control_hover']};
 }}
 QListWidget#devicePopupList::item:selected {{
-    background-color: {p['pin_toggle_checked_bg']};
-    border: 1px solid {p['pin_toggle_checked_border']};
-    color: {p['text']};
+    background: {_GRADIENT};
+    color: #ffffff;
     font-weight: 600;
 }}
 QListWidget#devicePopupList::corner {{
@@ -190,45 +193,38 @@ QPushButton#debugButton {{
     border: none;
     color: {p['text_dim']};
     font-size: 11px;
-    padding: 4px 8px;
-    text-decoration: underline;
+    padding: 4px 6px;
 }}
 QPushButton#debugButton:hover {{
     color: {p['text_muted']};
 }}
 
-/* ---- theme toggle (sun/moon), reused from Rec Size Helper -------------- */
+/* ---- two-icon switches (theme, Voicemeeter): the active side solid ----- */
 QFrame#segmentIconPill {{
-    background-color: {p['input_bg']};
-    border: 1px solid {p['input_border']};
+    background-color: {p['control_bg']};
+    border: 1px solid {p['control_border']};
     border-radius: 17px;
 }}
 QPushButton#segmentIconItem {{
     background: transparent;
-    border: 1px solid transparent;
+    border: none;
     border-radius: 13px;
-    padding: 4px 11px;
-    font-size: 15px;
-    color: {p['text_muted']};
-}}
-QPushButton#segmentIconItem:hover {{
-    color: {p['text']};
 }}
 QFrame#segmentIconThumb {{
-    background-color: {p['pin_toggle_checked_bg']};
-    border: 1px solid {p['pin_toggle_checked_border']};
+    background: {_GRADIENT};
+    border: none;
     border-radius: 13px;
 }}
 
 QScrollBar:vertical, QScrollBar:horizontal {{
-    background: {p['scrollbar_bg']};
+    background: transparent;
     width: 10px;
     height: 10px;
     margin: 2px;
 }}
 QScrollBar::handle:vertical, QScrollBar::handle:horizontal {{
     background: {p['scrollbar_handle']};
-    border-radius: 4px;
+    border-radius: 3px;
     min-height: 24px;
 }}
 QScrollBar::add-line, QScrollBar::sub-line {{

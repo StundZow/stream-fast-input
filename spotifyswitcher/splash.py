@@ -39,7 +39,7 @@ from PySide6.QtWidgets import QApplication, QWidget
 
 from . import settings, theme
 from .resources import resource_path
-from .theme import qcolor
+from .theme import BLUE, TEAL, qcolor
 
 WIDTH, HEIGHT = 420, 290
 RADIUS = 24
@@ -51,9 +51,9 @@ SHIMMER_PERIOD = 1.4
 FADE_MS = 450
 SAFETY_TIMEOUT_MS = 20000
 
-# violet → rose, comme les halos du fond et le curseur du sélecteur de thème
-_ACCENT_A = QColor("#8b5cf6")
-_ACCENT_B = QColor("#ec4899")
+# turquoise → bleu, le dégradé de l'icône de l'appli
+_ACCENT_A = QColor(TEAL)
+_ACCENT_B = QColor(BLUE)
 
 
 class _StdinReader(QObject):
@@ -167,18 +167,19 @@ class SplashWindow(QWidget):
         base.setColorAt(1.0, QColor(p["bg_base2"]))
         painter.fillPath(path, base)
 
-        # Halos de couleur qui dérivent lentement, comme le fond de l'appli.
+        # Halos turquoise (haut-gauche) et bleu (bas-droite) qui dérivent lentement, dans
+        # le sens du dégradé de l'icône, comme le fond de l'appli.
         painter.save()
         painter.setClipPath(path)
-        anchors = ((0.08, 0.10, 0.62), (0.95, 0.20, 0.55), (0.55, 1.05, 0.60))
-        for index, ((ax, ay, ar), color_hex) in enumerate(zip(anchors, p["blob_colors"])):
+        anchors = ((0.0, 0.0, 0.80), (1.0, 1.0, 0.85))
+        for index, ((ax, ay, ar), color_hex) in enumerate(zip(anchors, p["halo_colors"])):
             phase = index * 2.1
             cx = card.width() * ax + 22 * math.sin(t * 0.55 + phase)
             cy = card.height() * ay + 16 * math.cos(t * 0.45 + phase)
             radius = card.width() * ar
             gradient = QRadialGradient(QPointF(cx, cy), radius)
             color = QColor(color_hex)
-            color.setAlpha(min(int(p["blob_alpha"] * 1.25), 255))
+            color.setAlpha(min(int(p["halo_alpha"] * 1.6), 255))
             edge = QColor(color_hex)
             edge.setAlpha(0)
             gradient.setColorAt(0.0, color)
@@ -186,7 +187,7 @@ class SplashWindow(QWidget):
             painter.fillRect(card, gradient)
         painter.restore()
 
-        painter.setPen(qcolor(p["card_border"]))
+        painter.setPen(QColor(p["surface_border"]))
         painter.setBrush(Qt.NoBrush)
         painter.drawPath(path)
 
@@ -220,7 +221,7 @@ class SplashWindow(QWidget):
         # Barre de progression : rainure, remplissage dégradé, reflet qui balaye.
         bar = QRectF(WIDTH / 2 - BAR_WIDTH / 2, 226, BAR_WIDTH, BAR_HEIGHT)
         painter.setPen(Qt.NoPen)
-        painter.setBrush(qcolor(p["groove_bg"]))
+        painter.setBrush(qcolor(p["groove"]))
         painter.drawRoundedRect(bar, BAR_HEIGHT / 2, BAR_HEIGHT / 2)
 
         fill_w = bar.width() * self._shown / 100

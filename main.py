@@ -62,12 +62,6 @@ class _Splash:
             self._proc = None
 
 
-# Every glyph the interface draws outside plain ASCII. Shaping them once, up front,
-# loads the emoji font before the window exists — the same one-time cost either way,
-# but paid here it's a real step the splash bar can advance on.
-_UI_GLYPHS = "🎚️☀🌙⚙⋯🔊🔴🟢🔍🔄✓✕⌄⚠→•—…"
-
-
 def main():
     if "--splash" in sys.argv:
         from spotifyswitcher.splash import run_splash
@@ -80,7 +74,7 @@ def main():
     splash = _Splash()
     _mark("splash_spawned")
 
-    from PySide6.QtGui import QFont, QFontDatabase, QFontMetrics, QGuiApplication, QIcon
+    from PySide6.QtGui import QFontDatabase, QGuiApplication, QIcon
     from PySide6.QtWidgets import QApplication
 
     from spotifyswitcher.resources import ICON_PATH
@@ -92,24 +86,22 @@ def main():
     app.setWindowIcon(QIcon(ICON_PATH))
 
     # The first text render of a process pays the Windows font database (~0.5 s with a
-    # few hundred families installed) then the emoji font (~1 s) — once, but it freezes
-    # the thread. Triggering both explicitly here lets the splash bar move on these
-    # real steps instead of sitting still for 1.5 s.
+    # few hundred families installed) — once, but it freezes the thread. Triggering it
+    # explicitly here lets the splash bar move on this real step instead of sitting
+    # still. (The interface draws no emoji and no symbol Segoe UI lacks — icons are
+    # SVG line drawings — so no fallback font is ever loaded on top of it.)
     QFontDatabase.families()
     _mark("fonts_ready")
-    splash.progress(42)
-    QFontMetrics(QFont("Segoe UI", 13)).horizontalAdvance(_UI_GLYPHS)
-    _mark("emoji_ready")
-    splash.progress(74)
+    splash.progress(70)
 
     from spotifyswitcher.main_window import MainWindow
 
     _mark("main_window_imported")
-    splash.progress(82)
+    splash.progress(78)
 
     window = MainWindow()
     _mark("window_built")
-    splash.progress(93)
+    splash.progress(90)
 
     # Centered on the same point as the splash, so the hand-off doesn't jump.
     screen = QGuiApplication.primaryScreen()

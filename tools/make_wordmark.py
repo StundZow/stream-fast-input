@@ -1,8 +1,9 @@
 """Renders the splash wordmark once per theme, at 2x, into spotifyswitcher/assets/.
 
 The splash never draws text (that would make it pay the Windows font database like the
-app does), so the app name is shipped as an image. Re-run after changing the name, the
-font, or the palette:
+app does), so the app name is shipped as an image: "Stream Fast" in the theme's text
+colour, "Input" in the app icon's teal -> blue gradient. Re-run after changing the name,
+the font, or the palette:
 
     python tools/make_wordmark.py
 """
@@ -32,7 +33,6 @@ from spotifyswitcher.resources import resource_path
 SCALE = 2
 POINT_SIZE = 26
 LEFT, RIGHT = "Stream Fast ", "Input"
-ACCENT_A, ACCENT_B = QColor("#8b5cf6"), QColor("#ec4899")
 PAD = 4
 
 
@@ -58,8 +58,8 @@ def render(name: str) -> None:
     painter.drawText(QPointF(x, baseline), LEFT)
 
     gradient = QLinearGradient(QPointF(x + w_left, 0), QPointF(x + w_left + w_right, 0))
-    gradient.setColorAt(0.0, ACCENT_A)
-    gradient.setColorAt(1.0, ACCENT_B)
+    gradient.setColorAt(0.0, QColor(theme.TEAL))
+    gradient.setColorAt(1.0, QColor(theme.BLUE))
     painter.setPen(QPen(gradient, 1))
     painter.drawText(QPointF(x + w_left, baseline), RIGHT)
     painter.end()

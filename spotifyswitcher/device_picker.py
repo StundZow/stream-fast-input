@@ -13,6 +13,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from . import icons
+
 _MAX_VISIBLE_ITEMS = 7
 _ROW_HEIGHT = 40
 
@@ -38,10 +40,7 @@ class DevicePicker(QFrame):
         layout.setContentsMargins(14, 10, 12, 10)
         self._label = QLabel("Sélectionner…")
         layout.addWidget(self._label, stretch=1)
-        chevron = QLabel("⌄")
-        chevron.setStyleSheet("font-size: 13px;")
-        chevron.setObjectName("mutedText")
-        layout.addWidget(chevron)
+        layout.addWidget(icons.label("chevron", "muted", 16))
 
     def set_items(self, items: list[str]):
         self._items = list(items)

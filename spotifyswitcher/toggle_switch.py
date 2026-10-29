@@ -3,24 +3,25 @@ from __future__ import annotations
 from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QRect, QSize, Qt, Signal
 from PySide6.QtWidgets import QButtonGroup, QFrame, QHBoxLayout, QPushButton, QWidget
 
+from . import icons
+
 _FRAME_MARGIN = 3
-# Different icon pairs (☀/🌙, 🔓/🔒...) have different glyph metrics, so
-# sizing each button to its own sizeHint() gave the two slots mismatched
-# widths and made the sliding highlight look uneven/misaligned depending on
-# which pair was in use. A fixed size makes both slots always identical.
-_BUTTON_SIZE = QSize(46, 32)
+# Both slots share one fixed size so the sliding highlight is identical under either
+# icon, whatever the icon pair.
+_BUTTON_SIZE = QSize(42, 30)
+_ICON_SIZE = 16
 
 
 class ToggleSwitch(QWidget):
-    """Two-icon segmented switch (e.g. sun/moon) — an explicit either/or
-    pick rather than an unlabeled sliding knob, styled like the app's
-    existing segmented pill nav. The active side is shown by a highlight
-    that glides between the two icons instead of snapping.
+    """Two-icon segmented switch (e.g. sun/moon) — an explicit either/or pick rather
+    than an unlabeled sliding knob. The active side is a solid gradient pill with a
+    white icon, the other icon stays muted (the app icon's solid/faded idea); the pill
+    glides between the two instead of snapping.
     """
 
     toggled = Signal(bool)
 
-    def __init__(self, icon_off: str = "☀", icon_on: str = "🌙", parent=None):
+    def __init__(self, icon_off: str = "sun", icon_on: str = "moon", parent=None):
         super().__init__(parent)
         self._checked = False
 
@@ -39,13 +40,14 @@ class ToggleSwitch(QWidget):
         self._thumb.setObjectName("segmentIconThumb")
         self._thumb.lower()
 
-        self.off_button = QPushButton(icon_off)
-        self.on_button = QPushButton(icon_on)
-        for b in (self.off_button, self.on_button):
+        self.off_button = QPushButton()
+        self.on_button = QPushButton()
+        for b, name in ((self.off_button, icon_off), (self.on_button, icon_on)):
             b.setObjectName("segmentIconItem")
             b.setCheckable(True)
             b.setCursor(Qt.PointingHandCursor)
             b.setFixedSize(_BUTTON_SIZE)
+            icons.bind(b, name, "muted", _ICON_SIZE, checked_role="white")
             frame_layout.addWidget(b)
 
         self._group = QButtonGroup(self)
@@ -72,12 +74,6 @@ class ToggleSwitch(QWidget):
 
     def setChecked(self, checked: bool):
         self._set_checked(checked, emit=False)
-
-    def set_theme(self, palette: dict):
-        # styling comes entirely from the global app stylesheet
-        # (segmentIconPill/segmentIconItem/segmentIconThumb rules) —
-        # nothing to repaint here.
-        pass
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

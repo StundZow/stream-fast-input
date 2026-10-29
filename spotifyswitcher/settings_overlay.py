@@ -5,14 +5,26 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFileDialog, QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
 
-from . import backend, settings
+from . import backend, icons, settings
 from .device_picker import DevicePicker
 from .overlay_base import ModalOverlay
 from .scan_worker import DeviceScanWorker
 from .toggle_switch import ToggleSwitch
 
-_REFRESH_LABEL_IDLE = "🔄  Actualiser les périphériques"
-_REFRESH_LABEL_BUSY = "🔄  Scan en cours…"
+_REFRESH_LABEL_IDLE = "  Actualiser les périphériques"
+_REFRESH_LABEL_BUSY = "  Scan en cours…"
+
+
+def _titled_row(icon_name: str, text: str, object_name: str, icon_size: int = 16) -> QHBoxLayout:
+    """An accent line icon followed by its label."""
+    row = QHBoxLayout()
+    row.setSpacing(8)
+    row.addWidget(icons.label(icon_name, "accent", icon_size))
+    label = QLabel(text)
+    label.setObjectName(object_name)
+    row.addWidget(label)
+    row.addStretch()
+    return row
 
 
 class SettingsOverlay(ModalOverlay):
@@ -32,17 +44,16 @@ class SettingsOverlay(ModalOverlay):
         root.setContentsMargins(26, 24, 26, 22)
         root.setSpacing(16)
 
-        title = QLabel("⚙️  Paramètres")
-        title.setStyleSheet("font-size: 18px; font-weight: 700;")
-        root.addWidget(title)
+        title_row = _titled_row("settings", "Paramètres", "cardTitle", icon_size=20)
+        root.addLayout(title_row)
 
         subtitle = QLabel("Choisis la sortie audio utilisée par chaque mode.")
         subtitle.setObjectName("mutedText")
         subtitle.setWordWrap(True)
         root.addWidget(subtitle)
 
-        self.live_picker = self._device_row(root, "🔴  Sortie LIVE", main_window.live_device)
-        self.normal_picker = self._device_row(root, "🟢  Sortie NORMAL", main_window.normal_device)
+        self.live_picker = self._device_row(root, "live", "Sortie LIVE", main_window.live_device)
+        self.normal_picker = self._device_row(root, "headphones", "Sortie NORMAL", main_window.normal_device)
 
         hint = QLabel("Liste basée sur les périphériques actifs détectés par SoundVolumeView.")
         hint.setObjectName("dimText")
@@ -54,6 +65,7 @@ class SettingsOverlay(ModalOverlay):
         self.refresh_button = QPushButton(_REFRESH_LABEL_IDLE)
         self.refresh_button.setObjectName("pathButton")
         self.refresh_button.setCursor(Qt.PointingHandCursor)
+        icons.bind(self.refresh_button, "refresh", "accent", 15)
         self.refresh_button.clicked.connect(self.refresh_devices)
         refresh_row.addWidget(self.refresh_button)
         root.addLayout(refresh_row)
@@ -62,7 +74,7 @@ class SettingsOverlay(ModalOverlay):
         vm_box = QVBoxLayout()
         vm_box.setSpacing(2)
         vm_title = QLabel("Gérer Voicemeeter automatiquement")
-        vm_title.setStyleSheet("font-weight: 600; font-size: 13px;")
+        vm_title.setObjectName("sectionTitle")
         vm_title.setWordWrap(True)
         self.vm_sub = QLabel()
         self.vm_sub.setObjectName("mutedText")
@@ -73,15 +85,16 @@ class SettingsOverlay(ModalOverlay):
         vm_row.addLayout(vm_box, stretch=1)
         self._update_vm_subtitle()
 
-        self.vm_path_button = QPushButton("⋯")
+        self.vm_path_button = QPushButton()
         self.vm_path_button.setObjectName("iconButton")
-        self.vm_path_button.setFixedSize(28, 28)
+        self.vm_path_button.setFixedSize(30, 30)
         self.vm_path_button.setCursor(Qt.PointingHandCursor)
         self.vm_path_button.setToolTip("Choisir l'exécutable Voicemeeter")
+        icons.bind(self.vm_path_button, "more", "muted", 20)
         self.vm_path_button.clicked.connect(self.choose_voicemeeter_path)
         vm_row.addWidget(self.vm_path_button)
 
-        self.vm_switch = ToggleSwitch(icon_off="✕", icon_on="✓")
+        self.vm_switch = ToggleSwitch(icon_off="x", icon_on="check")
         self.vm_switch.setChecked(bool(main_window.manage_voicemeeter))
         self.vm_switch.toggled.connect(self.on_vm_toggled)
         vm_row.addWidget(self.vm_switch)
@@ -99,12 +112,10 @@ class SettingsOverlay(ModalOverlay):
         self.set_card(card)
         self.refresh_devices()
 
-    def _device_row(self, root: QVBoxLayout, label_text: str, current_value: str) -> DevicePicker:
+    def _device_row(self, root: QVBoxLayout, icon_name: str, label_text: str, current_value: str) -> DevicePicker:
         box = QVBoxLayout()
-        box.setSpacing(4)
-        label = QLabel(label_text)
-        label.setStyleSheet("font-weight: 600; font-size: 13px;")
-        box.addWidget(label)
+        box.setSpacing(6)
+        box.addLayout(_titled_row(icon_name, label_text, "sectionTitle"))
 
         picker = DevicePicker()
         picker.set_current_text(current_value)

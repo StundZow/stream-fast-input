@@ -140,7 +140,7 @@ def start_voicemeeter(voicemeeter_path: str) -> str:
     if voicemeeter_pids(voicemeeter_path):
         return "Voicemeeter déjà lancé"
     if not Path(voicemeeter_path).exists():
-        return f"⚠ Introuvable : {voicemeeter_path}"
+        return f"Voicemeeter introuvable : {voicemeeter_path}"
     try:
         subprocess.Popen(
             [voicemeeter_path],
@@ -149,7 +149,7 @@ def start_voicemeeter(voicemeeter_path: str) -> str:
         )
         return "Voicemeeter lancé"
     except Exception as e:
-        return f"⚠ Erreur lancement : {e}"
+        return f"Erreur au lancement de Voicemeeter : {e}"
 
 
 def stop_voicemeeter(voicemeeter_path: str) -> str:
